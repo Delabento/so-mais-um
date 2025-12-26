@@ -1,0 +1,8 @@
+{
+  "name": "Só Mais Um - ZARA Assistant",
+  "description": "Voice-enabled virtual assistant for Só Mais Um Burger Joint using Gemini Live API.",
+  "requestFramePermissions": [
+    "microphone",
+    "geolocation"
+  ]
+}
