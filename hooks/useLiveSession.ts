@@ -45,6 +45,8 @@ const getDeliveryZone = (distance: number) => {
   return { zone: "Zona 4", price: "5.000 Kzs (Sob consulta)" };
 };
 
+const WEBHOOK_URL = "https://teste-n8n.gre2wr.easypanel.host/webhook/b86058db-cee3-4e57-8822-594cb5d1c398";
+
 export const useLiveSession = (): UseLiveSessionResult => {
   const [isConnected, setIsConnected] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
@@ -264,7 +266,25 @@ export const useLiveSession = (): UseLiveSessionResult => {
         },
         speechConfig: {
           voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } }
-        }
+        },
+        tools: [{
+          functionDeclarations: [{
+            name: "finalize_order",
+            description: "Finaliza o pedido enviando os dados para o CRM via webhook.",
+            parameters: {
+              type: "OBJECT",
+              properties: {
+                name: { type: "STRING", description: "Nome completo do cliente" },
+                phone_number: { type: "STRING", description: "Número de telefone do cliente" },
+                email: { type: "STRING", description: "Email do cliente" },
+                address: { type: "STRING", description: "Endereço de entrega completo" },
+                items: { type: "STRING", description: "Lista de itens pedidos (formatado como texto)" },
+                total: { type: "STRING", description: "Valor total do pedido (ex: 5.000 Kzs)" }
+              },
+              required: ["name", "phone_number", "email", "address", "items", "total"]
+            }
+          }]
+        }]
       };
 
       console.log("Connecting to Gemini Live with config:", config);
@@ -328,6 +348,49 @@ export const useLiveSession = (): UseLiveSessionResult => {
               scheduledSourcesRef.current.clear();
               nextStartTimeRef.current = outputAudioContextRef.current?.currentTime || 0;
               setIsSpeaking(false);
+            }
+
+            // Handle Tool Calls
+            const toolCall = message.toolCall;
+            if (toolCall) {
+              const functionCalls = toolCall.functionCalls;
+              if (functionCalls && functionCalls.length > 0) {
+                const call = functionCalls[0];
+                if (call.name === 'finalize_order') {
+                  console.log("Recebida chamada de ferramenta finalize_order", call.id, call.args);
+                  try {
+                    const response = await fetch(WEBHOOK_URL, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify(call.args)
+                    });
+
+                    let resultText = "Pedido enviado com sucesso para a cozinha.";
+                    if (!response.ok) {
+                      resultText = "Houve um erro técnico ao registrar o pedido, mas anotei os detalhes.";
+                      console.error("Webhook error", response.status);
+                    }
+
+                    // Send Tool Response Back to Gemini
+                    const toolResponse = {
+                      toolResponse: {
+                        functionResponses: [{
+                          id: call.id,
+                          response: { result: { text: resultText } }
+                        }]
+                      }
+                    };
+
+                    // Use the current session ref to send response
+                    if (currentSessionRef.current) {
+                      await currentSessionRef.current.send(toolResponse);
+                    }
+
+                  } catch (e) {
+                    console.error("Erro ao chamar webhook", e);
+                  }
+                }
+              }
             }
           },
           onclose: (e) => {
