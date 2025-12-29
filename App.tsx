@@ -24,6 +24,9 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-stone-950 flex flex-col">
+      <div className="bg-red-600 text-white text-center text-xs font-bold py-1 px-4 uppercase tracking-widest animate-pulse">
+        ⚠️ DEBUG MODE ENABLED v2.0 - CHECK FOOTER FOR LOGS ⚠️
+      </div>
       {/* Navbar */}
       <nav className="border-b border-stone-800 bg-stone-950/80 backdrop-blur sticky top-0 z-50">
         <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
