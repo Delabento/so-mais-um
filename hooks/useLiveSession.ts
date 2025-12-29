@@ -415,7 +415,7 @@ export const useLiveSession = (): UseLiveSessionResult => {
               }
             }
           },
-          onclose: (e) => {
+          onclose: () => {
             addLog("Session closed");
             cleanup();
           },
