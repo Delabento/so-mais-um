@@ -12,6 +12,7 @@ interface UseLiveSessionResult {
   disconnect: () => void;
   error: string | null;
   groundingMetadata: any[] | null;
+  logs: string[];
 }
 
 // Restaurant Location (Bairro Prenda, Luanda approx)
@@ -53,6 +54,12 @@ export const useLiveSession = (): UseLiveSessionResult => {
   const [volume, setVolume] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [groundingMetadata, setGroundingMetadata] = useState<any[] | null>(null);
+  const [logs, setLogs] = useState<string[]>([]);
+
+  const addLog = (msg: string) => {
+    console.log(msg); // still log to console
+    setLogs(prev => [...prev.slice(-19), new Date().toLocaleTimeString() + ': ' + msg]);
+  };
 
   // Audio Contexts and Nodes
   const inputAudioContextRef = useRef<AudioContext | null>(null);
@@ -297,11 +304,11 @@ export const useLiveSession = (): UseLiveSessionResult => {
           onopen: () => {
             setIsConnected(true);
             nextStartTimeRef.current = outputAudioContextRef.current?.currentTime || 0;
-            console.log("Session opened");
+            addLog("Session opened");
           },
           onmessage: async (message: LiveServerMessage) => {
-            // Log full message for debugging (optional, can be noisy)
-            console.log("Gemini Message:", JSON.stringify(message, null, 2));
+            // Log full message for debugging
+            // addLog(`Gemini Message: ${JSON.stringify(message).substring(0, 100)}...`); 
 
             // 1. Handle Grounding Metadata
             const parts = message.serverContent?.modelTurn?.parts;
@@ -334,6 +341,7 @@ export const useLiveSession = (): UseLiveSessionResult => {
 
                 scheduledSourcesRef.current.add(source);
                 setIsSpeaking(true);
+                addLog("Starting audio output");
 
                 source.onended = () => {
                   scheduledSourcesRef.current.delete(source);
@@ -348,7 +356,7 @@ export const useLiveSession = (): UseLiveSessionResult => {
 
             // 3. Handle Interruption
             if (message.serverContent?.interrupted) {
-              console.log("Interruption signal received");
+              addLog("Interruption signal received");
               scheduledSourcesRef.current.forEach(src => {
                 try { src.stop(); } catch (e) { /* ignore */ }
               });
@@ -384,7 +392,6 @@ export const useLiveSession = (): UseLiveSessionResult => {
                       console.log("✅ Webhook Success!");
                     }
 
-                    // Send Tool Response Back to Gemini
                     const toolResponse = {
                       toolResponse: {
                         functionResponses: [{
@@ -393,14 +400,15 @@ export const useLiveSession = (): UseLiveSessionResult => {
                         }]
                       }
                     };
-                    console.log("📤 Sending Tool Response to Gemini:", toolResponse);
+                    // console.log("📤 Sending Tool Response to Gemini:", toolResponse);
 
                     // Use the current session ref to send response
                     if (currentSessionRef.current) {
                       await currentSessionRef.current.send(toolResponse);
                     }
 
-                  } catch (e) {
+                  } catch (e: any) {
+                    addLog(`🔥 CRITICAL ERROR: ${e.message}`);
                     console.error("🔥 CRITICAL ERROR calling webhook:", e);
                   }
                 }
@@ -408,10 +416,11 @@ export const useLiveSession = (): UseLiveSessionResult => {
             }
           },
           onclose: (e) => {
-            console.log("Session closed", e);
+            addLog("Session closed");
             cleanup();
           },
           onerror: (err) => {
+            addLog("Session error occurred");
             console.error("Session error:", err);
             setError("Connection error encountered.");
             cleanup();
@@ -459,6 +468,7 @@ export const useLiveSession = (): UseLiveSessionResult => {
     connect,
     disconnect,
     error,
-    groundingMetadata
+    groundingMetadata,
+    logs
   };
 };

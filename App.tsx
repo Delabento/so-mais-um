@@ -5,13 +5,13 @@ import { VoiceIndicator } from './components/VoiceIndicator';
 import { MENU_ITEMS } from './constants';
 
 const App: React.FC = () => {
-  const { isConnected, isSpeaking, volume, connect, disconnect, error, groundingMetadata } = useLiveSession();
+  const { isConnected, isSpeaking, volume, connect, disconnect, error, groundingMetadata, logs } = useLiveSession();
   const [activeCategory, setActiveCategory] = useState<string>('All');
 
   const categories = ['All', ...Array.from(new Set(MENU_ITEMS.map(item => item.category)))];
 
-  const filteredItems = activeCategory === 'All' 
-    ? MENU_ITEMS 
+  const filteredItems = activeCategory === 'All'
+    ? MENU_ITEMS
     : MENU_ITEMS.filter(item => item.category === activeCategory);
 
   const toggleConnection = () => {
@@ -50,9 +50,9 @@ const App: React.FC = () => {
       <header className="bg-stone-900 border-b border-stone-800 relative overflow-hidden">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-amber-900/20 via-stone-950/50 to-stone-950 pointer-events-none"></div>
         <div className="max-w-4xl mx-auto px-4 py-16 flex flex-col items-center justify-center relative z-10 text-center">
-          
+
           <h2 className="text-3xl md:text-5xl font-bold mb-4 text-white">
-            "Um hambúrguer não é só comida, <br/>é uma <span className="text-amber-500">experiência</span>."
+            "Um hambúrguer não é só comida, <br />é uma <span className="text-amber-500">experiência</span>."
           </h2>
           <p className="text-stone-400 max-w-lg mb-12 text-lg">
             Fale com a <strong>ZARA</strong>, nossa assistente virtual, para conhecer o cardápio, verificar entregas ou fazer o seu pedido.
@@ -61,14 +61,13 @@ const App: React.FC = () => {
           {/* Voice Interface */}
           <div className="mb-12 flex flex-col items-center gap-8">
             <VoiceIndicator active={isConnected} volume={volume} isSpeaking={isSpeaking} />
-            
+
             <button
               onClick={toggleConnection}
-              className={`px-8 py-3 rounded-full font-bold transition-all duration-300 flex items-center gap-2 shadow-lg ${
-                isConnected 
-                  ? 'bg-red-500/10 text-red-500 border border-red-500 hover:bg-red-500 hover:text-white' 
-                  : 'bg-amber-500 text-stone-950 hover:bg-amber-400 hover:scale-105'
-              }`}
+              className={`px-8 py-3 rounded-full font-bold transition-all duration-300 flex items-center gap-2 shadow-lg ${isConnected
+                ? 'bg-red-500/10 text-red-500 border border-red-500 hover:bg-red-500 hover:text-white'
+                : 'bg-amber-500 text-stone-950 hover:bg-amber-400 hover:scale-105'
+                }`}
             >
               {isConnected ? (
                 <>
@@ -97,11 +96,11 @@ const App: React.FC = () => {
               <div className="space-y-2">
                 {groundingMetadata.map((chunk, i) => {
                   if (chunk.web?.uri) {
-                     return (
+                    return (
                       <a key={i} href={chunk.web.uri} target="_blank" rel="noopener noreferrer" className="block text-sm text-blue-400 hover:underline truncate">
                         {chunk.web.title || chunk.web.uri}
                       </a>
-                     )
+                    )
                   }
                   return null;
                 })}
@@ -115,17 +114,16 @@ const App: React.FC = () => {
       <main className="flex-grow max-w-6xl mx-auto px-4 py-12 w-full">
         <div className="flex flex-col md:flex-row items-center justify-between mb-8">
           <h3 className="text-2xl font-bold text-white mb-4 md:mb-0">Nosso Menu</h3>
-          
+
           <div className="flex gap-2 overflow-x-auto pb-2 w-full md:w-auto">
             {categories.map(cat => (
               <button
                 key={cat}
                 onClick={() => setActiveCategory(cat)}
-                className={`px-4 py-1.5 rounded-full text-sm whitespace-nowrap transition-colors ${
-                  activeCategory === cat 
-                    ? 'bg-amber-500 text-stone-900 font-bold' 
-                    : 'bg-stone-800 text-stone-400 hover:text-white'
-                }`}
+                className={`px-4 py-1.5 rounded-full text-sm whitespace-nowrap transition-colors ${activeCategory === cat
+                  ? 'bg-amber-500 text-stone-900 font-bold'
+                  : 'bg-stone-800 text-stone-400 hover:text-white'
+                  }`}
               >
                 {cat}
               </button>
@@ -137,6 +135,17 @@ const App: React.FC = () => {
           {filteredItems.map((item, index) => (
             <MenuCard key={index} {...item} />
           ))}
+        </div>
+        <div className="max-w-6xl mx-auto px-4 py-4 w-full">
+          <details className="bg-stone-900 border border-stone-800 rounded p-2 text-xs text-stone-400 font-mono">
+            <summary className="cursor-pointer hover:text-stone-300">Debugger Logs ({logs ? logs.length : 0})</summary>
+            <div className="mt-2 h-48 overflow-y-auto space-y-1 p-2 bg-black rounded">
+              {logs && logs.map((log, i) => (
+                <div key={i} className="border-b border-stone-800 pb-0.5">{log}</div>
+              ))}
+              {!logs && <div>No logs initialized</div>}
+            </div>
+          </details>
         </div>
       </main>
 
