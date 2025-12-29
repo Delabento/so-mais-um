@@ -235,7 +235,8 @@ export const useLiveSession = (): UseLiveSessionResult => {
       analyserRef.current = analyser;
       visualizeVolume();
 
-      const processor = inputAudioContextRef.current.createScriptProcessor(4096, 1, 1);
+      // Reduced buffer size from 4096 to 2048 to improve latency (approx 128ms at 16kHz)
+      const processor = inputAudioContextRef.current.createScriptProcessor(2048, 1, 1);
       processorRef.current = processor;
 
       processor.onaudioprocess = (e) => {
@@ -299,7 +300,10 @@ export const useLiveSession = (): UseLiveSessionResult => {
             console.log("Session opened");
           },
           onmessage: async (message: LiveServerMessage) => {
-            // Check for grounding metadata (if available in future)
+            // Log full message for debugging (optional, can be noisy)
+            // console.log("Gemini Message:", JSON.stringify(message, null, 2));
+
+            // 1. Handle Grounding Metadata
             const parts = message.serverContent?.modelTurn?.parts;
             if (parts) {
               const groundingChunks = parts.flatMap(p => (p as any).groundingMetadata?.groundingChunks || []);
@@ -308,6 +312,7 @@ export const useLiveSession = (): UseLiveSessionResult => {
               }
             }
 
+            // 2. Handle Audio Output
             const base64Audio = message.serverContent?.modelTurn?.parts?.[0]?.inlineData?.data;
             if (base64Audio && outputAudioContextRef.current && outputNodeRef.current) {
               try {
@@ -341,7 +346,9 @@ export const useLiveSession = (): UseLiveSessionResult => {
               }
             }
 
+            // 3. Handle Interruption
             if (message.serverContent?.interrupted) {
+              console.log("Interruption signal received");
               scheduledSourcesRef.current.forEach(src => {
                 try { src.stop(); } catch (e) { /* ignore */ }
               });
@@ -350,25 +357,31 @@ export const useLiveSession = (): UseLiveSessionResult => {
               setIsSpeaking(false);
             }
 
-            // Handle Tool Calls
+            // 4. Handle Tool Calls
             const toolCall = message.toolCall;
             if (toolCall) {
               const functionCalls = toolCall.functionCalls;
               if (functionCalls && functionCalls.length > 0) {
                 const call = functionCalls[0];
                 if (call.name === 'finalize_order') {
-                  console.log("Recebida chamada de ferramenta finalize_order", call.id, call.args);
+                  console.log("🔨 TOOL CALL RECEIVED: finalize_order", call.id, call.args);
                   try {
+                    console.log("🚀 Sending data to webhook:", WEBHOOK_URL);
                     const response = await fetch(WEBHOOK_URL, {
                       method: 'POST',
                       headers: { 'Content-Type': 'application/json' },
                       body: JSON.stringify(call.args)
                     });
 
+                    console.log("📨 Webhook Response Status:", response.status);
+
                     let resultText = "Pedido enviado com sucesso para a cozinha.";
                     if (!response.ok) {
+                      const errorText = await response.text();
+                      console.error("❌ Webhook Error Body:", errorText);
                       resultText = "Houve um erro técnico ao registrar o pedido, mas anotei os detalhes.";
-                      console.error("Webhook error", response.status);
+                    } else {
+                      console.log("✅ Webhook Success!");
                     }
 
                     // Send Tool Response Back to Gemini
@@ -380,6 +393,7 @@ export const useLiveSession = (): UseLiveSessionResult => {
                         }]
                       }
                     };
+                    console.log("📤 Sending Tool Response to Gemini:", toolResponse);
 
                     // Use the current session ref to send response
                     if (currentSessionRef.current) {
@@ -387,7 +401,7 @@ export const useLiveSession = (): UseLiveSessionResult => {
                     }
 
                   } catch (e) {
-                    console.error("Erro ao chamar webhook", e);
+                    console.error("🔥 CRITICAL ERROR calling webhook:", e);
                   }
                 }
               }
