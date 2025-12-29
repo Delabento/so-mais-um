@@ -301,7 +301,7 @@ export const useLiveSession = (): UseLiveSessionResult => {
           },
           onmessage: async (message: LiveServerMessage) => {
             // Log full message for debugging (optional, can be noisy)
-            // console.log("Gemini Message:", JSON.stringify(message, null, 2));
+            console.log("Gemini Message:", JSON.stringify(message, null, 2));
 
             // 1. Handle Grounding Metadata
             const parts = message.serverContent?.modelTurn?.parts;
